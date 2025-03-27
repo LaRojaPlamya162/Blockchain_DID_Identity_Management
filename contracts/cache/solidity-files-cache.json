@@ -1,0 +1,41 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "E:\\Coding\\Hybrid Lang\\blockchain-master\\blockchain-master\\project\\hyperledger-besu-did\\contracts\\contracts\\DIDRegistry.sol": {
+      "lastModificationDate": 1743070356810,
+      "contentHash": "56c7b18735e0510d2dcac94ffb2ce4dc",
+      "sourceName": "contracts/DIDRegistry.sol",
+      "solcConfig": {
+        "version": "0.8.28",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "DIDRegistry"
+      ]
+    }
+  }
+}
