@@ -20,16 +20,31 @@ export function usingBesu() {
     }
   }
 
+  async function isBesuActive(): Promise<boolean> {
+    if (!provider) return false
+    try {
+      await provider.getBlockNumber() // Lấy số block để kiểm tra kết nối
+      return true
+    } catch (error) {
+      console.error("Besu network is down:", error)
+      return false
+    }
+  }
+
+  // 📝 Hàm đăng ký DID, kiểm tra mạng Besu trước khi thực hiện
   async function registerDID(did: string, publicKey: string) {
-    if (!provider || !account) {
-      alert("Please connect your wallet first!")
+
+
+    const besuOnline = await isBesuActive()
+    if (!besuOnline) {
+      // alert("Besu network is not available. Please check your connection!")
       return
     }
 
-    const signer = await provider.getSigner()
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, DIDRegistryABI, signer)
-
     try {
+      const signer = await provider?.getSigner()
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, DIDRegistryABI, signer)
+      
       const tx = await contract.registerDID(did, publicKey) // Gọi smart contract
       await tx.wait()
       alert("DID registered successfully!")
@@ -39,5 +54,5 @@ export function usingBesu() {
     }
   }
 
-  return { provider, account, connectWallet, registerDID }
+  return { provider, account, connectWallet, isBesuActive, registerDID }
 }
