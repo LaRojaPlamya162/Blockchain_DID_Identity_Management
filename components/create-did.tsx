@@ -9,13 +9,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { useBesu } from "@/context/besu-provider"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 import { createDID } from "@/lib/did-service"
-import { usingBesu } from "@/hook/useBesu"
+import { usingBesu} from "@/hook/usingBesu"
 
 export function CreateDID() {
   const { account } = useBesu()
-  const { registerDID} = usingBesu()
+  const { registerDID , isBesuActive} = usingBesu()
   const [name, setName] = useState("")
-  const [did, setDid] = useState("")
   const [publicKeys, setPublicKeys] = useState([
     { id: "key-1", type: "EcdsaSecp256k1VerificationKey2019", publicKeyHex: "" },
   ]);
@@ -48,7 +47,8 @@ export function CreateDID() {
     };
   
     fetchPublicKey();
-  }, []); // Chạy chỉ một lần sau khi component mount
+  }, []);
+   // Chạy chỉ một lần sau khi component mount
   const [services, setServices] = useState([{ id: "svc-1", type: "DIDCommMessaging", endpoint: "" }])
   const [isCreating, setIsCreating] = useState(false)
   const [didDocument, setDidDocument] = useState<any>(null)
@@ -99,15 +99,37 @@ export function CreateDID() {
     setServices(updatedServices)
   }
 
+  
   const handleCreateDID = async () => {
-    setIsCreating(true)
-    if (!publicKeys.length) {
-      alert("Please enter a valid DID and at least one Public Key")
-      setIsCreating(false)
+    if (!name) {
+      alert("Please entered DID");
+      return;
+    }
+    if (!(await isBesuActive())) {
+      alert("Besu network is not available. Please check your connection!")
       return
     }
+    const publicKey = localStorage.getItem("publicKey");
+    if (!publicKey) {
+      alert("Public Key not found")
+      return;
+    }
+
+    setIsCreating(true);
+    const storedDIDMap = JSON.parse(localStorage.getItem("didPublicKeyMap") || "{}");
+
+    // Kiểm tra nếu DID và public key đã tồn tại cùng nhau
+    if (storedDIDMap[name] === publicKey) {
+      alert("Public key has been used for same DID. Please use another DID.");
+      setIsCreating(false);
+      return;
+    }
+
+    // alert("Tạo DID thành công!");
   
     try {
+      storedDIDMap[name] = publicKey;
+      localStorage.setItem("didPublicKeyMap", JSON.stringify(storedDIDMap));
       // 1️⃣ Tạo tài liệu DID
       const didDoc = await createDID(account, name, publicKeys, services)
   
@@ -116,10 +138,10 @@ export function CreateDID() {
   
       // 3️⃣ Cập nhật UI với tài liệu DID mới
       setDidDocument(didDoc)
-      alert("DID successfully created and registered on Besu!")
+      // alert("DID successfully created and registered on Besu!")
     } catch (error) {
       console.error("Error creating DID:", error)
-      alert("Failed to create DID. Check console for details.")
+      //alert("Failed to create DID. Check console for details.")
     } finally {
       setIsCreating(false)
     }
