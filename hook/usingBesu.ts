@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { ethers } from "ethers"
 import DIDRegistryArtifact from "@/contracts/DIDRegistry.json"
+import { isBesuOnline } from "@/context/besuUtils"
 const DIDRegistryABI = DIDRegistryArtifact.abi // Trích xuất ABI từ JSON
 const CONTRACT_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" // Cập nhật địa chỉ contract
 
@@ -20,24 +21,11 @@ export function usingBesu() {
     }
   }
 
-  async function isBesuActive(): Promise<boolean> {
-    if (!provider) return false
-    try {
-      await provider.getBlockNumber() // Lấy số block để kiểm tra kết nối
-      return true
-    } catch (error) {
-      console.error("Besu network is down:", error)
-      return false
-    }
-  }
-
   // 📝 Hàm đăng ký DID, kiểm tra mạng Besu trước khi thực hiện
   async function registerDID(did: string, publicKey: string) {
 
-
-    const besuOnline = await isBesuActive()
-    if (!besuOnline) {
-      // alert("Besu network is not available. Please check your connection!")
+    if (!(await isBesuOnline())) {
+      alert("Besu network is not available. Please check your connection!")
       return
     }
 
@@ -50,9 +38,9 @@ export function usingBesu() {
       alert("DID registered successfully!")
     } catch (error) {
       console.error("Error registering DID:", error)
-      alert("Failed to register DID!")
+      // alert("Failed to register DID!")
     }
   }
 
-  return { provider, account, connectWallet, isBesuActive, registerDID }
+  return { provider, account, connectWallet, registerDID }
 }
