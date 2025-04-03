@@ -1,4 +1,4 @@
-const hre = require("hardhat")
+const { ethers } = require("hardhat");
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -12,6 +12,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
+  console.error("❌ Deployment failed:", error);
+  process.exitCode = 1;
+});
