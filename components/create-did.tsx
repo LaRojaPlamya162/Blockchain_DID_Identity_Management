@@ -12,16 +12,21 @@ import { createDID } from "@/lib/did-service";
 import { usingBesu } from "@/hooks/usingBesu";
 import { isBesuOnline } from "@/context/besuUtils";
 
+// 🔐 Tải private key từ biến môi trường (chỉ dùng trong môi trường server-side)
+const PRIVATE_KEY = process.env.NEXT_PUBLIC_BESU_PRIVATE_KEY || "";
+const BESU_RPC_URL = process.env.NEXT_PUBLIC_BESU_RPC_URL || "";
+
 export function CreateDID() {
-  const { setAccount, setProvider } = useBesu();
   const { registerDID } = usingBesu();
-  const { account } = useBesu();
+  const [account, setAccount] = useState("");
   const [name, setName] = useState("");
   const [publicKeys, setPublicKeys] = useState([
     { id: "key-1", type: "EcdsaSecp256k1VerificationKey2019", publicKeyHex: "" },
   ]);
+  const [services, setServices] = useState([{ id: "svc-1", type: "DIDCommMessaging", endpoint: "" }]);
+  const [isCreating, setIsCreating] = useState(false);
+  const [didDocument, setDidDocument] = useState<any>(null);
 
-  // Kết nối trực tiếp tới mạng Besu và lấy tài khoản
   useEffect(() => {
     const fetchPublicKey = async () => {
       if (typeof window !== "undefined" && window.ethereum) {
@@ -52,106 +57,74 @@ export function CreateDID() {
   
     fetchPublicKey();
   }, []);
-   // Chạy chỉ một lần sau khi component mount
-  const [services, setServices] = useState([{ id: "svc-1", type: "DIDCommMessaging", endpoint: "" }])
-  const [isCreating, setIsCreating] = useState(false)
-  const [didDocument, setDidDocument] = useState<any>(null)
+  
 
+  // 🆕 Thêm Public Key
   const addPublicKey = () => {
-    setPublicKeys([
-      ...publicKeys,
-      {
-        id: `key-${publicKeys.length + 1}`,
-        type: "EcdsaSecp256k1VerificationKey2019",
-        publicKeyHex: "",
-      },
-    ])
-  }
-
+    setPublicKeys([...publicKeys, { id: `key-${publicKeys.length + 1}`, type: "EcdsaSecp256k1VerificationKey2019", publicKeyHex: "" }]);
+  };
   const removePublicKey = (index: number) => {
     if (publicKeys.length > 1) {
       setPublicKeys(publicKeys.filter((_, i) => i !== index))
     }
   }
 
+  // 🆕 Cập nhật Public Key
   const updatePublicKey = (index: number, field: string, value: string) => {
-    const updatedKeys = [...publicKeys]
-    updatedKeys[index] = { ...updatedKeys[index], [field]: value }
-    setPublicKeys(updatedKeys)
-  }
+    const updatedKeys = [...publicKeys];
+    updatedKeys[index] = { ...updatedKeys[index], [field]: value };
+    setPublicKeys(updatedKeys);
+  };
 
+  // 🆕 Thêm Service
   const addService = () => {
-    setServices([
-      ...services,
-      {
-        id: `svc-${services.length + 1}`,
-        type: "DIDCommMessaging",
-        endpoint: "",
-      },
-    ])
-  }
-
+    setServices([...services, { id: `svc-${services.length + 1}`, type: "DIDCommMessaging", endpoint: "" }]);
+  };
   const removeService = (index: number) => {
     if (services.length > 1) {
       setServices(services.filter((_, i) => i !== index))
     }
   }
 
+  // 🆕 Cập nhật Service
   const updateService = (index: number, field: string, value: string) => {
-    const updatedServices = [...services]
-    updatedServices[index] = { ...updatedServices[index], [field]: value }
-    setServices(updatedServices)
-  }
+    const updatedServices = [...services];
+    updatedServices[index] = { ...updatedServices[index], [field]: value };
+    setServices(updatedServices);
+  };
 
-  
+  // 🚀 Xử lý tạo DID
   const handleCreateDID = async () => {
     if (!name) {
-      alert("Please enter a DID");
+      alert("Vui lòng nhập tên DID");
       return;
     }
-    
+
     if (!(await isBesuOnline())) {
-      alert("Please connect to Besu Network");
+      alert("Vui lòng kết nối với mạng Besu");
       return;
     }
-  
-    const publicKey = localStorage.getItem("publicKey");
-    if (!publicKey) {
-      alert("Public Key not found");
+
+    if (!account) {
+      alert("Tài khoản không hợp lệ, vui lòng kiểm tra Private Key");
       return;
     }
-  
+
     setIsCreating(true);
-  
-    // 1️⃣ Tạo namespace cho từng account trong localStorage
-    const storageKey = `didPublicKeyMap_${account}`;
-    const storedDIDMap = JSON.parse(localStorage.getItem(storageKey) || "{}");
-  
-    // 2️⃣ Kiểm tra nếu DID đã được sử dụng với publicKey này
-    if (storedDIDMap[name] === publicKey) {
-      alert("Public key has been used for the same DID. Please use another DID.");
-      setIsCreating(false);
-      return;
-    }
-  
+
     try {
-      // 3️⃣ Tạo tài liệu DID
+      // 1️⃣ Tạo DID Document
       const didDoc = await createDID(account, name, publicKeys, services);
-  
-      // 4️⃣ Đăng ký DID lên mạng Besu (nếu lỗi, không lưu vào localStorage)
-      await registerDID(didDoc.id, JSON.stringify(didDoc));
-  
-      // 5️⃣ Nếu thành công, cập nhật localStorage
-      storedDIDMap[name] = publicKey;
-      localStorage.setItem(storageKey, JSON.stringify(storedDIDMap));
-  
-      // 6️⃣ Cập nhật UI
+
+      // 2️⃣ Gửi giao dịch lên mạng Besu
+      await registerDID(didDoc.id, JSON.stringify(didDoc), publicKeys[0].publicKeyHex, String(services));
+
+      // 3️⃣ Cập nhật state
       setDidDocument(didDoc);
-      // alert("DID successfully created and registered on Besu!");
-  
+      alert("✅ DID đã được tạo thành công!");
     } catch (error) {
-      console.error("Error creating DID:", error);
-      // alert("Failed to create DID. Check console for details.");
+      console.error("❌ Lỗi tạo DID:", error);
+      alert("⚠️ Không thể tạo DID, vui lòng kiểm tra lại.");
     } finally {
       setIsCreating(false);
     }
