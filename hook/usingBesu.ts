@@ -4,7 +4,7 @@ import { isBesuOnline } from "@/context/besuUtils";
 import { useBesu } from "@/context/besu-provider";
 
 const DIDRegistryABI = DIDRegistryArtifact.abi;
-const CONTRACT_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"; // Cập nhật địa chỉ contract
+const CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; // Cập nhật địa chỉ contract
 
 export function usingBesu() {
   const { provider, account, setProvider, setAccount } = useBesu();
@@ -31,31 +31,33 @@ export function usingBesu() {
   }
 
   // 📝 Đăng ký DID trên mạng Besu
-  async function registerDID(did: string, publicKey: string) {
+  async function registerDID(did: string, controller: string, publicKey: string, services: string) {
     if (!provider) {
       alert("Please connect to the Besu network first!");
       return;
     }
-
-    // Kiểm tra Besu có hoạt động không
+  
     if (!(await isBesuOnline())) {
       alert("Besu network is not available. Please check your connection!");
       return;
     }
-
+  
     try {
-      const signer = await provider.getSigner(); // Lấy signer từ provider của Besu
+      const signer = await provider.getSigner();
       const contract = new ethers.Contract(CONTRACT_ADDRESS, DIDRegistryABI, signer);
-
-      console.log("Sending transaction...");
-      const tx = await contract.registerDID(did, publicKey);
-      await tx.wait(); // Đợi transaction được xác nhận
+  
+      // Kiểm tra DID đã tồn tại chưa
+  
+      console.log("Registering DID...");
+      const tx = await contract.registerDID(did);
+      await tx.wait();
       alert("DID registered successfully!");
     } catch (error) {
-      console.error("Error registering DID:", error);
+      console.error("Error:", error);
       alert("Failed to register DID!");
     }
   }
+  
 
   return { provider, account, connectToBesu, registerDID };
 }
