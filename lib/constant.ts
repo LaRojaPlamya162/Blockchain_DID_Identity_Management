@@ -1,0 +1,1 @@
+export const DID_REGISTRY_ADDRESS = "0x..." // Địa chỉ của smart contract trên mạng Besu

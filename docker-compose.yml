@@ -1,0 +1,18 @@
+services:
+  besu:
+    image: hyperledger/besu:latest
+    container_name: besu_node
+    ports:
+      - "8545:8545"  # RPC API
+      - "8546:8546"  # WebSocket API
+      - "30303:30303"  # P2P
+    command:
+      - --network=dev
+      - --data-path=/var/lib/besu
+      - --rpc-http-enabled
+      - --rpc-http-api=ETH,NET,WEB3
+      - --host-allowlist="*"
+      - --rpc-http-cors-origins="all"
+    volumes:
+      - ./data:/var/lib/besu  # Gán volume để lưu dữ liệu
+    restart: always
