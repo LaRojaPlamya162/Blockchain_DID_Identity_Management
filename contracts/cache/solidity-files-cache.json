@@ -38,8 +38,8 @@
       ]
     },
     "E:\\Coding\\Git\\BlockChain-DID_Identity_Management\\contracts\\contracts\\DID.sol": {
-      "lastModificationDate": 1744895109637,
-      "contentHash": "ebd17b86d050eb8b7cd7ed94ca2e296c",
+      "lastModificationDate": 1746717092047,
+      "contentHash": "c44332eb61264f52df9594109a3cee09",
       "sourceName": "contracts/DID.sol",
       "solcConfig": {
         "version": "0.8.28",

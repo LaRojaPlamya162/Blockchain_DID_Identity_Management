@@ -11,10 +11,6 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { createDID } from "@/lib/did-service";
 import { usingBesu } from "@/hooks/usingBesu";
 import { isBesuOnline, getDIDComponents } from "@/context/besuUtils";
-
-const PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-const BESU_RPC_URL = "http://127.0.0.1:8545";
-
 export function CreateDID() {
   const { setProvider, setAccount} = useBesu()
   const { registerDID, account } = usingBesu();
@@ -28,7 +24,7 @@ export function CreateDID() {
   const [services, setServices] = useState([{ id: "svc-1", type: "DIDCommMessaging", endpoint: "" }]);
   const [isCreating, setIsCreating] = useState(false);
   const [didDocument, setDidDocument] = useState<any>(null);
-  const { contract, provider, signer, wallet } = getDIDComponents();
+  const {provider, wallet } = getDIDComponents();
   useEffect(() => {
     const fetchPublicKey = async () => {
       if (typeof window !== "undefined" && window.ethereum) {
@@ -36,8 +32,6 @@ export function CreateDID() {
           // Yêu cầu quyền truy cập tài khoản
           //setProvider(new ethers.JsonRpcProvider(BESU_RPC_URL))
           setProvider(provider)
-          //const wallet = new ethers.Wallet(PRIVATE_KEY, new ethers.JsonRpcProvider(BESU_RPC_URL));
-          //const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
           const accounts = [wallet.address];
           const address = accounts[0]; // Lấy địa chỉ đầu tiên
           setAccount(address)
@@ -132,6 +126,7 @@ export function CreateDID() {
    
     try {
       // 1️⃣ Tạo DID Document
+
       const didDoc = await createDID(account, name, publicKeys, services, personalId, birthday);
       localStorage.setItem(storageKey, JSON.stringify(storedDIDMap));
       // 2️⃣ Gửi giao dịch lên mạng Besu

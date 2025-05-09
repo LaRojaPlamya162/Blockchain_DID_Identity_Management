@@ -8,7 +8,7 @@ import { ViewDID } from "@/components/view-did"
 import { VerifyCredential } from "@/components/verify-credential"
 import { ConnectWallet } from "@/components/connect-wallet"
 import { BesuProvider } from "@/context/besu-provider"
-import { UpdateDID } from "@/components/update-did"
+import { CreateVC } from "@/components/createVC"
 export function DIDDashboard() {
   const [isConnected, setIsConnected] = useState(false)
 
@@ -31,11 +31,12 @@ export function DIDDashboard() {
           </div>
         ) : (
           <Tabs defaultValue="create" className="max-w-4xl mx-auto">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="create">Create DID</TabsTrigger>
               <TabsTrigger value="view">View DID</TabsTrigger>
+              <TabsTrigger value="createVC">Create VC</TabsTrigger>
               <TabsTrigger value="verify">Verify Credentials</TabsTrigger>
-              <TabsTrigger value="update">Update DID</TabsTrigger>
+
             </TabsList> 
             <TabsContent value="create">
               <CreateDID />
@@ -46,8 +47,8 @@ export function DIDDashboard() {
             <TabsContent value="verify">
               <VerifyCredential />
             </TabsContent>
-            <TabsContent value="update">
-              <UpdateDID />
+            <TabsContent value="createVC">
+              <CreateVC />
             </TabsContent>
           </Tabs>
         )}

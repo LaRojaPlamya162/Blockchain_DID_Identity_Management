@@ -13,11 +13,27 @@ contract DID {
         bool active;
     }
 
+    // Structure to store VC information
+    struct VCInfo {
+        address issuer;
+        string vcId;
+        string subject;
+        string claims;
+        uint256 timestamp;
+        bool active;
+    }
+
     // Mapping từ DID string đến DIDInfo
     mapping(string => DIDInfo) private didRegistry;
+
+    // Mapping from VC ID to VCInfo
+    mapping(string => VCInfo) private vcRegistry;
     
     // Array lưu trữ tất cả các DID đã đăng ký
     string[] private registeredDIDs;
+
+    // Array to store all registered VCs
+    string[] private registeredVCs;
 
     // Sự kiện khi một DID được đăng ký
     event RegisterDID(string did, address indexed owner, string name, string birthday, string personalID, uint256 timestamp);
@@ -28,6 +44,9 @@ contract DID {
     // Sự kiện khi một DID bị vô hiệu hóa
     event DeactivateDID(string did, address indexed owner, uint256 timestamp);
 
+    // Events for VC operations
+    event RegisterVC(string vcId, address indexed issuer, string subject, string claims, uint256 timestamp);
+    event DeactivateVC(string vcId, address indexed issuer, uint256 timestamp);
 
     function registerDID(string memory did, string memory name, string memory birthday, string memory personalID) public {
         require(didRegistry[did].owner == address(0), "DID already registered");
@@ -51,6 +70,28 @@ contract DID {
     }
     
 
+    // Register a new VC
+    function registerVC(string memory vcId, string memory subject, string memory claims) public {
+        require(vcRegistry[vcId].issuer == address(0), "VC already registered");
+
+        // Create new VC info
+        VCInfo memory newVC = VCInfo({
+            issuer: msg.sender,
+            vcId: vcId,
+            subject: subject,
+            claims: claims,
+            timestamp: block.timestamp,
+            active: true
+        });
+
+        // Store in registry
+        vcRegistry[vcId] = newVC;
+        registeredVCs.push(vcId);
+
+        // Emit event
+        emit RegisterVC(vcId, msg.sender, subject, claims, block.timestamp);
+    }
+
     function getDIDInfo(string memory did) public view returns (address owner, string memory name, string memory birthday, string memory personalID, uint256 timestamp, bool active) {
         DIDInfo memory info = didRegistry[did];
         require(info.owner != address(0), "DID not registered");
@@ -60,6 +101,11 @@ contract DID {
 
     function isDIDRegistered(string memory did) public view returns (bool) {
         return didRegistry[did].owner != address(0);
+    }
+
+    // Check if VC is registered
+    function isVCRegistered(string memory vcId) public view returns (bool) {
+        return vcRegistry[vcId].issuer != address(0);
     }
     
 

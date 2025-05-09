@@ -1,15 +1,57 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect} from "react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle
+} from "@/components/ui/alert"
 import { Loader2, CheckCircle2, XCircle } from "lucide-react"
 import { verifyCredential } from "@/lib/did-service"
-
+import { useBesu } from "@/context/besu-provider";
+import { getDIDComponents } from "@/context/besuUtils";
 export function VerifyCredential() {
+   const { setProvider, setAccount } = useBesu();
+   const { provider, wallet } = getDIDComponents();
+  useEffect(() => {
+      const fetchPublicKey = async () => {
+        if (typeof window !== "undefined" && window.ethereum) {
+          try {
+            // Yêu cầu quyền truy cập tài khoản
+            //setProvider(new ethers.JsonRpcProvider(BESU_RPC_URL))
+            setProvider(provider)
+            const accounts = [wallet.address];
+            const address = accounts[0]; // Lấy địa chỉ đầu tiên
+            setAccount(address)
+            if (!address) throw new Error("Không tìm thấy địa chỉ ví.");
+    
+            // Lấy public key từ địa chỉ ví
+            const publicKey = await window.ethereum.request({
+              method: "eth_getEncryptionPublicKey",
+              params: [address], // Dùng address thay vì window.ethereum.selectedAddress
+            });
+    
+            // Cập nhật state với publicKey mới
+          } catch (error) {
+            console.error("Lỗi lấy public key:", error);
+          }
+        } else {
+          console.error("MetaMask chưa được cài đặt!");
+        }
+      };
+    
+      fetchPublicKey();
+    }, []);
   const [credential, setCredential] = useState("")
   const [isVerifying, setIsVerifying] = useState(false)
   const [verificationResult, setVerificationResult] = useState<{
@@ -18,10 +60,12 @@ export function VerifyCredential() {
   } | null>(null)
 
   const handleVerifyCredential = async () => {
+    setVerificationResult(null)
+
     if (!credential.trim()) {
       setVerificationResult({
         isValid: false,
-        message: "Please enter a verifiable credential",
+        message: "Please paste a Verifiable Credential JSON string.",
       })
       return
     }
@@ -29,17 +73,22 @@ export function VerifyCredential() {
     setIsVerifying(true)
 
     try {
-      // Parse the credential JSON
-      const credentialObj = JSON.parse(credential)
+      const parsedCredential = JSON.parse(credential)
 
-      // In a real implementation, this would verify the credential against Hyperledger Besu
-      const result = await verifyCredential(credentialObj)
+      if (!parsedCredential?.id) {
+        throw new Error("Missing `id` field in VC document")
+      }
+
+      const result = await verifyCredential(parsedCredential)
       setVerificationResult(result)
-    } catch (error) {
-      console.error("Error verifying credential:", error)
+    } catch (err: any) {
+      console.error("Verification error:", err)
       setVerificationResult({
         isValid: false,
-        message: "Invalid credential format. Please check the JSON structure.",
+        message:
+          err?.message?.includes("Unexpected token")
+            ? "Invalid JSON format. Please make sure your VC is valid JSON."
+            : err.message || "Verification failed",
       })
     } finally {
       setIsVerifying(false)
@@ -50,7 +99,9 @@ export function VerifyCredential() {
     <Card>
       <CardHeader>
         <CardTitle>Verify Credential</CardTitle>
-        <CardDescription>Verify a Verifiable Credential against DIDs on Hyperledger Besu</CardDescription>
+        <CardDescription>
+          Check if the VC exists and is valid on the Hyperledger Besu network.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
@@ -58,13 +109,17 @@ export function VerifyCredential() {
           <Textarea
             id="credential"
             className="font-mono text-sm h-64"
-            placeholder='{"@context":["https://www.w3.org/2018/credentials/v1"],"type":["VerifiableCredential"],...}'
+            placeholder='Paste your Verifiable Credential JSON here...'
             value={credential}
             onChange={(e) => setCredential(e.target.value)}
           />
         </div>
 
-        <Button onClick={handleVerifyCredential} className="w-full" disabled={isVerifying}>
+        <Button
+          onClick={handleVerifyCredential}
+          className="w-full"
+          disabled={isVerifying}
+        >
           {isVerifying ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -80,9 +135,11 @@ export function VerifyCredential() {
             {verificationResult.isValid ? (
               <CheckCircle2 className="h-4 w-4 text-green-500" />
             ) : (
-              <XCircle className="h-4 w-4" />
+              <XCircle className="h-4 w-4 text-red-500" />
             )}
-            <AlertTitle>{verificationResult.isValid ? "Valid Credential" : "Invalid Credential"}</AlertTitle>
+            <AlertTitle>
+              {verificationResult.isValid ? "Credential Found" : "Credential Not Found"}
+            </AlertTitle>
             <AlertDescription>{verificationResult.message}</AlertDescription>
           </Alert>
         )}
@@ -90,4 +147,3 @@ export function VerifyCredential() {
     </Card>
   )
 }
-

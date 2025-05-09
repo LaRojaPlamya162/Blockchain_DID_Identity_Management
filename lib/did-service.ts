@@ -122,68 +122,86 @@ export async function resolveDID(didUrl: string) {
   return didDocument;
 }
 
-// Verify a verifiable credential
-export async function verifyCredential(credential: any) {
-  // In a real implementation, this would verify the credential against DIDs on Hyperledger Besu
-  // For demonstration, we'll do some basic validation
+export async function verifyCredential(vc: any) {
+  const { contract } = getDIDComponents()
 
   try {
-    // Check if the credential has the required fields
+    // Kiểm tra context hợp lệ cho VC
     if (
-      !credential["@context"] ||
-      !credential.type ||
-      !credential.issuer ||
-      !credential.issuanceDate
+      !vc["@context"] ||
+      !Array.isArray(vc["@context"]) ||
+      !vc["@context"].includes("https://www.w3.org/2018/credentials/v1")
     ) {
       return {
         isValid: false,
-        message: "Missing required fields in the credential",
-      };
+        message: "Invalid or missing credential context",
+      }
     }
 
-    // Check if the credential has a valid context
-    if (
-      !credential["@context"].includes("https://www.w3.org/2018/credentials/v1")
-    ) {
+    if (!vc.id || typeof vc.id !== "string") {
       return {
         isValid: false,
-        message: "Invalid credential context",
-      };
+        message: "Credential must include an ID",
+      }
     }
 
-    // Check if the credential has a valid type
-    if (!credential.type.includes("VerifiableCredential")) {
+    if (!vc.issuer || typeof vc.issuer !== "string") {
       return {
         isValid: false,
-        message: "Invalid credential type",
-      };
+        message: "Credential must include an issuer DID",
+      }
     }
 
-    // Check if the credential has a proof
-    if (!credential.proof) {
+    if (!vc.credentialSubject || typeof vc.credentialSubject !== "object") {
       return {
         isValid: false,
-        message: "Credential is missing proof",
-      };
+        message: "Missing credentialSubject",
+      }
     }
 
-    // In a real implementation, this would verify the proof against the issuer's DID
-    // For demonstration, we'll simulate a successful verification
+    // 🔍 Kiểm tra xem issuer DID có tồn tại trên smart contract không
+    const isRegistered = await contract.isDIDRegistered(vc.issuer)
+    if (!isRegistered) {
+      return {
+        isValid: false,
+        message: "Issuer DID is not registered on the blockchain",
+      }
+    }
 
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const [owner, name, birthday, personalID, timestamp, active] = await contract.getDIDInfo(vc.issuer)
+    if (!active) {
+      return {
+        isValid: false,
+        message: "Issuer DID is not active",
+      }
+    }
+    if (!owner || !name || !birthday || !personalID) {
+      return {
+        isValid: false,
+        message: "Invalid issuer DID information",
+      }
+    }
+    
+
+    // 🔒 Xác thực signature nếu cần (để sau)
+    // TODO: verify signature (proof.jws) with publicKey of verificationMethod
+
+    // Mô phỏng độ trễ mạng
+    await new Promise((resolve) => setTimeout(resolve, 1000))
 
     return {
       isValid: true,
-      message: "Credential successfully verified",
-    };
+      message: "Verifiable Credential is valid and issuer DID is registered",
+    }
+
   } catch (error) {
+    console.error("Verification error:", error)
     return {
       isValid: false,
       message:
         "Error verifying credential: " +
         (error instanceof Error ? error.message : String(error)),
-    };
+    }
   }
 }
 
@@ -236,5 +254,83 @@ export async function updateDID(
     console.error("Error updating DID:", error);
     throw new Error("Failed to update DID. Ensure you are the owner and the DID is active.");
   }
+}
+
+export async function createVC(
+  issuer: string,
+  subject: string,
+  credentialType: string,
+  claims: { key: string; value: string }[],
+  expirationDate: string,
+  account: string | null
+) {
+  // Khai báo issuerDID và subjectDID bên ngoài các điều kiện if
+  let issuerDID: string | undefined;
+  let subjectDID: string | undefined;
+
+  // Trích xuất phần DID từ issuer
+  const matchIssuer = issuer.match(/:(\d+:\d{4}-\d{2}-\d{2}:\d+)$/);
+
+  if (matchIssuer) {
+    issuerDID = matchIssuer[1];
+    console.log("Issuer DID:", issuerDID);  // Output: 1:1111-11-11:1115
+  } else {
+    throw new Error("Invalid issuer DID format");
+  }
+
+  // Trích xuất phần DID từ subject
+  const matchSubject = subject.match(/:(\d+:\d{4}-\d{2}-\d{2}:\d+)$/);
+  if (matchSubject) {
+    subjectDID = matchSubject[1];
+    console.log("Subject DID:", subjectDID);  // Output: 1:1111-11-11:1111
+  } else {
+    throw new Error("Invalid subject DID format");
+  }
+
+  if (!account) {
+    throw new Error("No account connected");
+  }
+
+  if (!issuer || !subject) {
+    throw new Error("Issuer and subject DIDs are required");
+  }
+
+  // Generate VC ID using issuerDID and subjectDID
+  const vcId = `vc:besu:${issuerDID}:${subjectDID}:${Date.now()}`;
+
+  // Create the VC document
+  const vcDocument = {
+    "@context": [
+      "https://www.w3.org/2018/credentials/v1",
+      "https://www.w3.org/2018/credentials/examples/v1"
+    ],
+    id: vcId,
+    type: ["VerifiableCredential", credentialType],
+    issuer: issuer,
+    issuanceDate: new Date().toISOString(),
+    expirationDate: expirationDate || undefined,
+    credentialSubject: {
+      id: subject,
+      ...claims.reduce((acc, claim) => ({
+        ...acc,
+        [claim.key]: claim.value
+      }), {})
+    },
+    proof: {
+      type: "EcdsaSecp256k1Signature2019",
+      created: new Date().toISOString(),
+      proofPurpose: "assertionMethod",
+      verificationMethod: `${issuer}#key-1`,
+      jws: account.toLowerCase() // Placeholder JWS (in real implementation, sign with private key)
+    }
+  };
+
+  // In a real implementation, this would store the VC document on Hyperledger Besu
+  // For demonstration, we'll just return the document
+
+  // Simulate network delay
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  return vcDocument;
 }
 

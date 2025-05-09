@@ -13,31 +13,11 @@ export function usingBesu() {
   const { provider, account, setProvider, setAccount} = useBesu();
   const { contract, wallet } = getDIDComponents();
   // 🦊 Kết nối trực tiếp tới mạng Besu (không dùng MetaMask)
-  async function connectToBesu() {
-    const BESU_RPC_URL = "http://localhost:8545"; // Địa chỉ RPC của Besu, thay đổi nếu cần
 
-    try {
-      //const newProvider = new ethers.JsonRpcProvider(BESU_RPC_URL); // Tạo một provider từ Besu RPC URL
-      //const accounts = await newProvider.listAccounts(); // Lấy danh sách tài khoản từ Besu
-      //const newWallet = new ethers.Wallet(PRIVATE_KEY, provider);
-      const accounts = [wallet.address];
-      //setWallet(newWallet)
-      if (accounts.length > 0) {
-        setProvider(provider);
-        setAccount(String(accounts[0])); // Sử dụng tài khoản đầu tiên trong danh sách
-        console.log("Connected to Besu with account:", accounts[0]);
-      } else {
-        alert("No accounts found on Besu network.");
-      }
-    } catch (error) {
-      console.error("Error connecting to Besu:", error);
-      alert("Failed to connect to Besu!");
-    }
-  }
 
   // 📝 Đăng ký DID trên mạng Besu
   async function registerDID(did: string, name: string, birthday: string, personalID: string) {
-    await connectToBesu()
+    
     if (!provider) {
       alert("Please connect to the Besu network first!");
       return;
@@ -79,5 +59,49 @@ export function usingBesu() {
     }
   }
 
-  return { provider, account, connectToBesu, registerDID };
+  async function registerVC(
+    vcId: string,
+    subject: string,
+    claims: { key: string; value: string }[]
+  ) {
+    if (!provider) {
+      alert("Please connect to the Besu network first!");
+      return;
+    }
+  
+    if (!(await isBesuOnline())) {
+      alert("Besu network is not available. Please check your connection!");
+      return;
+    }
+  
+    try {
+      if (!wallet) {
+        throw new Error("Wallet is not initialized!");
+      }
+  
+      const balance = await provider.getBalance(wallet.address);
+      console.log("Balance:", ethers.formatEther(balance), "ETH");
+      console.log("Registering VC...");
+  
+      // Convert claim array to JSON string
+      const claimsData = JSON.stringify(
+        claims.reduce((acc, claim) => {
+          acc[claim.key] = claim.value;
+          return acc;
+        }, {} as Record<string, string>)
+      );
+  
+      // Contract only expects (vcId, subject, claims) — issuer is msg.sender
+      const tx = await contract.registerVC(vcId, subject, claimsData);
+      await tx.wait();
+  
+      alert("VC registered successfully!");
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Failed to register VC!");
+    }
+  }
+  
+
+  return { provider, account, registerDID, registerVC };
 }
