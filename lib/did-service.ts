@@ -122,7 +122,7 @@ export async function resolveDID(didUrl: string) {
   return didDocument;
 }
 
-export async function verifyCredential(vc: any) {
+export async function verifyCredential(vc: any, key: any) {
   const { contract } = getDIDComponents()
 
   try {
@@ -160,8 +160,8 @@ export async function verifyCredential(vc: any) {
     }
 
     // 🔍 Kiểm tra xem issuer DID có tồn tại trên smart contract không
-    const isRegistered = await contract.isDIDRegistered(vc.issuer)
-    if (!isRegistered) {
+    const isIssuerRegistered = await contract.isDIDRegistered(vc.issuer)
+    if (!isIssuerRegistered) {
       return {
         isValid: false,
         message: "Issuer DID is not registered on the blockchain",
@@ -181,7 +181,20 @@ export async function verifyCredential(vc: any) {
         message: "Invalid issuer DID information",
       }
     }
-    
+    const isSubjectRegistered = await contract.isDIDRegistered(vc.credentialSubject.id)
+    if (!isSubjectRegistered) {
+      return {
+        isValid: false,
+        message: "Subject DID is not registered on the blockchain",
+      }
+    }
+    console.log('Address:', vc.proof.jws)
+    if (String(vc.proof.jws).toLowerCase() !== key.toLowerCase()) {
+  return {
+    isValid: false,
+    message: "Invalid signature",
+  }
+}
 
     // 🔒 Xác thực signature nếu cần (để sau)
     // TODO: verify signature (proof.jws) with publicKey of verificationMethod
@@ -264,28 +277,27 @@ export async function createVC(
   expirationDate: string,
   account: string | null
 ) {
-  // Khai báo issuerDID và subjectDID bên ngoài các điều kiện if
-  let issuerDID: string | undefined;
-  let subjectDID: string | undefined;
+
 
   // Trích xuất phần DID từ issuer
-  const matchIssuer = issuer.match(/:(\d+:\d{4}-\d{2}-\d{2}:\d+)$/);
+  // issuer: full DID string
+let issuerDID = "";
+let subjectDID = "";
 
-  if (matchIssuer) {
-    issuerDID = matchIssuer[1];
-    console.log("Issuer DID:", issuerDID);  // Output: 1:1111-11-11:1115
-  } else {
-    throw new Error("Invalid issuer DID format");
-  }
+if (issuer.startsWith("did:besu:")) {
+  issuerDID = issuer.substring("did:besu:".length);
+  console.log("Issuer DID:", issuerDID);
+} else {
+  throw new Error("Invalid issuer DID format");
+}
 
-  // Trích xuất phần DID từ subject
-  const matchSubject = subject.match(/:(\d+:\d{4}-\d{2}-\d{2}:\d+)$/);
-  if (matchSubject) {
-    subjectDID = matchSubject[1];
-    console.log("Subject DID:", subjectDID);  // Output: 1:1111-11-11:1111
-  } else {
-    throw new Error("Invalid subject DID format");
-  }
+if (subject.startsWith("did:besu:")) {
+  subjectDID = subject.substring("did:besu:".length);
+  console.log("Subject DID:", subjectDID);
+} else {
+  throw new Error("Invalid subject DID format");
+}
+
 
   if (!account) {
     throw new Error("No account connected");

@@ -23,6 +23,9 @@ import { getDIDComponents } from "@/context/besuUtils";
 export function VerifyCredential() {
    const { setProvider, setAccount } = useBesu();
    const { provider, wallet } = getDIDComponents();
+     const [publicKeys, setPublicKeys] = useState([
+    { id: "key-1", type: "EcdsaSecp256k1VerificationKey2019", publicKeyHex: "" },
+  ]);
   useEffect(() => {
       const fetchPublicKey = async () => {
         if (typeof window !== "undefined" && window.ethereum) {
@@ -40,7 +43,10 @@ export function VerifyCredential() {
               method: "eth_getEncryptionPublicKey",
               params: [address], // Dùng address thay vì window.ethereum.selectedAddress
             });
-    
+            
+            setPublicKeys([
+            { id: "key-1", type: "EcdsaSecp256k1VerificationKey2019", publicKeyHex: publicKey },
+          ]);
             // Cập nhật state với publicKey mới
           } catch (error) {
             console.error("Lỗi lấy public key:", error);
@@ -78,8 +84,8 @@ export function VerifyCredential() {
       if (!parsedCredential?.id) {
         throw new Error("Missing `id` field in VC document")
       }
-
-      const result = await verifyCredential(parsedCredential)
+      console.log("Address:", wallet.address)
+      const result = await verifyCredential(parsedCredential, wallet.address)
       setVerificationResult(result)
     } catch (err: any) {
       console.error("Verification error:", err)
